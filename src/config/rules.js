@@ -31,8 +31,17 @@ export default {
   contract: {
     highSellTax: 0.20          // BSC: satış vergisi bu ve üstüyse verdict RISKY'ye sabitlenir
   },
+  launchpad: {
+    probeTokens: 1e8,          // four.meme curve'ünde sanal rezervi çözmek için sorulan alım kotası (token)
+    createWindow: 2,           // DexScreener zamanından bulunan bloğun ± bu kadar komşusunda TokenCreate aranır
+    historyMaxReads: 20,       // creator geçmişi için en çok bu kadar lansmanın durumu okunur
+    logChunk: 2000,            // kayıt doldururken bir eth_getLogs çağrısının blok aralığı (public node sınırı)
+    recordFile: 'data/launches.json'
+  },
   sources: {
     bubblemapsLimit: 250,      // map endpoint'inden istenen holder sayısı (80, 250 veya 500)
-    freshToleranceMs: 3600e3   // cüzdanın ilk aktivitesi token yaratılışından en fazla bu kadar önceyse fresh
+    freshToleranceMs: 3600e3,  // cüzdanın ilk aktivitesi token yaratılışından en fazla bu kadar önceyse fresh
+    rpcUrl: 'https://bsc-rpc.publicnode.com',   // anahtarsız; BSC_RPC_URL ile değiştirilir
+    timeoutMs: 15000
   }
 };

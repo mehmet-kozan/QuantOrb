@@ -1,5 +1,18 @@
 # Changelog
 
+## 3 Kasım 2026 · four.meme ve flap.sh
+
+- İki launchpad zincirden okunur (`src/sources/fourmeme.js`, `flap.js`, `launchpad.js`): platform, curve/mezun,
+  ilerleme, creator, yaratılış zamanı, launch bloğu alıcıları, dev'in launch'ta aldığı, flap vergileri. Adresler
+  ve imzalar resmi kaynaklardan; canlı zincirde doğrulandı, ham cevaplar fixture oldu.
+- Curve'de fiyat etkisi kesin: iki curve de sabit çarpım, sanal token rezervi `impact()`'e verilir.
+- Lansman kaydı (`data/launches.json`, `node src/cli.js index`): create olaylarından yerel kayıt. Creator
+  geçmişi buradan; kısmi kayıt seri lansmancıyı tutar, kimseyi temize çıkarmaz. Kontrat creator (VaultPortal)
+  "okunmadı".
+- Guard'ın üç kontrolü artık zincirden beslenir; Shield her launchpad taramasında raporda.
+- Bağımlılıksız JSON-RPC ve ABI katmanı (`rpc.js`, `abi.js`, keccak256 dahil). Yeni ortam değişkeni
+  `BSC_RPC_URL` (isteğe bağlı). Launchpad token'ında GoPlus'ın creator alanları kullanılmaz.
+
 ## 3 Kasım 2026 · BSC sürümü
 
 - Depo artık BNB Chain için çalışan bir tarayıcı: Bubblemaps (holder'lar, cluster'lar, transferler),

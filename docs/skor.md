@@ -97,18 +97,26 @@ ne tutar ne geçer; hepsi geçip biri okunmamışsa **PASS so far** (GUARD · PA
 
 | Kontrol | HELD koşulu | BSC'de kaynak |
 |---|---|---|
-| Creator history | ≥ 10 lansman ve < %10 mezun | okunmuyor (four.meme olayları gerekir) |
-| First-slot buyers | launch bloğunda alınan arz ≥ %30 | Bubblemaps `supply_stats.bundles` |
-| Dev holdings | dev şu an arzın ≥ %15'ini tutuyor | GoPlus `creator_percent` |
+| Creator history | ≥ 10 lansman ve < %10 mezun | lansman kaydı (`data/launches.json`): kısmidir, eşiği aşanı tutar, aşmayanı "okunmadı" bırakır; creator bir kontratsa (flap VaultPortal) "okunmadı" |
+| First-slot buyers | launch bloğunda alınan arz ≥ %30 | launch bloğundaki token `Transfer`'leri; okunamazsa Bubblemaps `supply_stats.bundles` |
+| Dev holdings | dev şu an arzın ≥ %15'ini tutuyor | create olayındaki creator'ın Bubblemaps listesindeki payı; launchpad yoksa GoPlus `creator_percent` |
 
 ## 8. Shield (Radar)
 
 | Kontrol | HELD koşulu |
 |---|---|
 | Creator history | ≥ 10 lansman ve < %10 mezun; 0 lansman cevabı "unavailable", geçer değil |
-| Dev at launch | create işleminde dev'in aldığı pay ≥ %15; arz bilinmiyorsa okunmadı |
+| Dev at launch | launch bloğunda creator'a giden token / arz ≥ %15; arz bilinmiyorsa okunmadı |
 
-Radar bu sürümde yok; kural hazır.
+Shield, launchpad token'ı tanındığında her taramada hesaplanır ve raporda Guard'ın altında görünür. Radar
+(her lansmanda otomatik) bu sürümde yok.
+
+## 8a. Curve'de fiyat etkisi
+
+Satış senaryosu ve "biggest operator" parçası `impact(q, R) = 1 − (R / (R + q))²` formülünü kullanır. Mezun
+token'da R havuzun token bakiyesidir. Curve'deki token'da R launchpad'in **sanal token rezervi**dir: iki
+launchpad'in curve'ü de sabit çarpımdır (flap `Rv = h + 1e9 − S`, four.meme bir `tryBuy` kotasından
+çözülür), bu yüzden formül curve'de de kesindir. Ayrıntı: `docs/kaynaklar.md`.
 
 ## 9. Tüm eşikler
 
@@ -126,5 +134,7 @@ Radar bu sürümde yok; kural hazır.
 | guard.slot0Max / devMax | %30 / %15 |
 | shield.minLaunches / maxGradPct / devMax | 10 / %10 / %15 |
 | contract.highSellTax | %20 |
+| launchpad.probeTokens / createWindow | 100M token / ±2 blok |
+| launchpad.historyMaxReads / logChunk | 20 / 2000 blok |
 | sources.bubblemapsLimit | 250 |
 | sources.freshToleranceMs | 1 saat |

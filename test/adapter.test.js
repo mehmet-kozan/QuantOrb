@@ -99,3 +99,54 @@ test('scan(): sources are read in parallel; without Bubblemaps there is no scan,
   const none = await scan('0xt0ken', { apiKey: 'k', fetchers: { map: async () => { throw new Error('HTTP 401'); }, security: async () => fx('goplus'), pairs: async () => [] } });
   assert.strictEqual(none.state, 'unavailable');
 });
+
+/* launchpad katmanı girdiye girince: dev ve yaratılış zamanı create olayından, curve'de sanal rezerv, launch bloğu */
+const LAUNCH = { platform: 'four.meme', graduated: false, progress: 0.2, pool: null, virtualReserveTokens: 1.07e9, buyTax: null, sellTax: null, supply: 1e9,
+  creator: '0xW02', creatorIsContract: false, createdAt: 1760000000000 - 3600e3, block: 100, slot0: { tokens: 120e6, buyers: ['0xw02', '0xw03'] }, devAtLaunch: 60e6 };
+
+test('with a launch: creator is the dev, age from the create event, the curve reserve is the virtual one, launch-slot buyers are bundles', () => {
+  const x = build({ launch: LAUNCH, history: { launched: 12, graduated: 0, since: 1759000000000, local: true } });
+  assert.strictEqual(at(x, '0xw02').dev, true);
+  assert.strictEqual(at(x, '0xw05').dev, false);                         // GoPlus'ın creator'ı artık dev değil
+  assert.ok(Math.abs(x.market.ageDays - (5 + 1 / 24)) < 1e-9);
+  assert.strictEqual(x.stage, 'curve');
+  assert.strictEqual(x.reserveTokens, 1.07e9);
+  assert.ok(at(x, '0xw02').bundle && at(x, '0xw03').bundle && !at(x, '0xw01').bundle);
+  assert.ok(Math.abs(x.slot0Share - 0.12) < 1e-12);
+  assert.ok(Math.abs(x.devShare - 0.06) < 1e-12);                        // Bubblemaps listesindeki payı (arzın)
+  assert.ok(Math.abs(x.devAtLaunch / x.supply - 0.06) < 1e-12);
+  const r = scanVerdict(x);
+  assert.strictEqual(r.guard.checks[0].ok, false);                        // 12 lansman, 0 mezun: kayıt yeterli kanıt
+  assert.match(r.guard.reason, /serial creator/);
+  assert.strictEqual(r.shield.checks[0].ok, false);
+  assert.strictEqual(r.shield.checks[1].text, 'dev bought 6.0% of supply at launch');
+  assert.strictEqual(r.launch.platform, 'four.meme');
+});
+
+test('with a launch but no record: creator history and the launch slot stay unread; a flap tax fills the contract card', () => {
+  const flapLaunch = { ...LAUNCH, platform: 'flap.sh', creator: null, createdAt: null, block: null, slot0: null, devAtLaunch: null, buyTax: 0.09, sellTax: 0.25, pool: null };
+  const x = build({ launch: flapLaunch, history: null, security: { ...fx('goplus'), sell_tax: '', buy_tax: '', creator_address: '' }, pairs: [] });
+  assert.strictEqual(x.creator, null);
+  assert.strictEqual(x.devShare, null);
+  assert.ok(x.unmeasured.includes('virgin') && !x.unmeasured.includes('operator'));
+  assert.ok(Math.abs(x.slot0Share - 0.12) < 1e-12);                      // Bubblemaps'in bundle payına düşer
+  const r = scanVerdict(x);
+  assert.strictEqual(r.guard.checks[0].ok, null);
+  assert.strictEqual(r.contract.sellTax, 0.25);
+  const vault = scanVerdict(build({ launch: { ...flapLaunch, creator: '0xVault', creatorIsContract: true }, history: null }));
+  assert.strictEqual(vault.guard.checks[0].text, 'launched through a contract · creator wallet not known');
+  assert.ok(vault.holders.every(h => !h.dev));
+  assert.ok(r.gates.some(g => /sell tax is 25%/.test(g.text)));
+  assert.strictEqual(r.shield.checks[1].ok, null);
+});
+
+test('scan(): the launchpad and record fetchers feed the input; a launchpad failure does not stop the scan', async () => {
+  const base = { map: async () => fx('bubblemaps-map'), security: async () => fx('goplus'), pairs: async () => fx('dexscreener') };
+  const r = await scan('0xt0ken', { apiKey: 'k', rpc: {}, fetchers: { ...base, launch: async () => LAUNCH, history: async () => ({ launched: 2, graduated: 1, since: 1759000000000, local: true }) } });
+  assert.strictEqual(r.sources.launchpad, 'four.meme');
+  assert.strictEqual(r.sources.record, '2 launches by this creator');
+  assert.strictEqual(r.guard.checks[0].text, '2 launches in our record since 2025-09-27 · full history not read');
+  const down = await scan('0xt0ken', { apiKey: 'k', rpc: {}, fetchers: { ...base, launch: async () => { throw new Error('rpc down'); } } });
+  assert.strictEqual(down.sources.launchpad, 'rpc down');
+  assert.ok(down.score != null && down.launch === undefined);
+});

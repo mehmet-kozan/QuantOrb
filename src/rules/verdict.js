@@ -1,22 +1,25 @@
 /* Bir tarama, baştan sona: holder'lar ve linklerden verdict'e.
-   Sıra: too established → too early → operatörler → skor. Guard ve kontrat kapıları her durumda eklenir.
+   Sıra: too established → too early → operatörler → skor. Guard, Shield ve kontrat kapıları her durumda eklenir.
 
    Girdi (ScanInput):
      holders        float payına göre en büyük 20 cüzdan: { share, kind: 'buy'|'transfer', virgin, sniper, bundle, sold, dev, unread }
      links          [{ a, b, kind, level: 'proven'|'pack' }] holder sırasına göre
      floatTokens    curve, havuz, locker ve burn adresleri dışındaki arz
-     reserveTokens  satışın gideceği havuzdaki token
+     reserveTokens  satışın gideceği havuzdaki token; curve'de sanal token rezervi
      liquidityUsd   havuzun likiditesi (bilinmiyorsa null: cap uygulanmaz)
      stage          'curve' ya da havuz adı (sadece TOO EARLY başlığı için)
      market         { ageDays, liquidityUsd, mcap, fdv } (sadece TOO ESTABLISHED için)
      unmeasured     ölçülemeyen parçalar: ['virgin', 'sniper', 'operator'] alt kümesi
      contract       adapter.js'in çıkardığı kontrat kartı (BSC)
-     creator, slot0Share, devShare, traded   Guard (isteğe bağlı) */
+     launch         launchpad kartı (four.meme / flap.sh); varsa Shield de hesaplanır
+     creator, slot0Share, devShare, traded   Guard (isteğe bağlı)
+     devAtLaunch, supply                     Shield (isteğe bağlı) */
 import cfg from '../config/rules.js';
 import { sum } from './format.js';
 import { operators } from './operators.js';
 import { score } from './score.js';
 import { guard } from './guard.js';
+import { shield } from './shield.js';
 import { contractGates } from './contract.js';
 
 const HOLDER = { kind: null, virgin: false, unread: false, sniper: false, bundle: false, dev: false, sold: false, op: null };
@@ -26,7 +29,9 @@ export function scanVerdict(input) {
   const SC = cfg.scan, mk = input.market || null;
   const extra = {
     guard: hasGuard(input) ? guard({ history: input.creator, slot0Share: input.slot0Share, devShare: input.devShare, traded: input.traded }) : undefined,
-    contract: input.contract || undefined
+    shield: input.launch ? shield({ creator: input.creator, devAtLaunch: input.devAtLaunch, supply: input.supply }) : undefined,
+    contract: input.contract || undefined,
+    launch: input.launch || undefined
   };
   const cGates = contractGates(input.contract);
 

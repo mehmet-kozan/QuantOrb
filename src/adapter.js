@@ -1,7 +1,10 @@
 /* Kaynak cevaplarını skor motorunun girdisine (ScanInput) çevirir.
      Bubblemaps map   → holder'lar, float, havuz rezervi, cluster linkleri, transferle alanlar, fresh cüzdanlar
-     GoPlus           → kontrat kartı, dev cüzdanı, dev payı, likidite yedeği, toplam arz
-     DexScreener      → likidite, market cap, FDV, token yaşı (fresh ölçümü için yaratılış zamanı)
+     GoPlus           → kontrat kartı, likidite yedeği, toplam arz, (launchpad yoksa) dev cüzdanı ve payı
+     DexScreener      → likidite, market cap, FDV, (launchpad yoksa) token yaşı
+     Launchpad        → platform, curve/mezun, sanal rezerv (curve'de kesin fiyat etkisi), creator, yaratılış
+                        zamanı, launch bloğu alıcıları, dev'in launch'ta aldığı; flap'te vergiler
+     Kayıt            → creator geçmişi (Guard ve Shield)
    Okunamayan her şey null kalır ya da "unmeasured" listesine girer; null hiçbir kuralda kanıt değildir.
    Eşleme kararları ve varsayımlar: docs/kaynaklar.md */
 import cfg from './config/rules.js';
@@ -17,7 +20,7 @@ const unit = values => values.some(v => v > 1) ? 100 : 1;
 /* curve, havuz, borsa, kontrat ve burn adresleri holder değildir */
 const isExcluded = h => { const d = h.address_details || {}; return BURN.has(low(h.address)) || !!(d.is_contract || d.is_dex || d.is_cex); };
 
-export function toScanInput({ address, map, security: sec, pairs, now = Date.now() }) {
+export function toScanInput({ address, map, security: sec, pairs, launch = null, history = null, now = Date.now() }) {
   const all = map?.nodes?.top_holders || [];
   const u = unit(all.map(h => h.holder_data.share));
   const shareOf = h => h.holder_data.share / u;
@@ -27,8 +30,9 @@ export function toScanInput({ address, map, security: sec, pairs, now = Date.now
   const index = new Map(top.map((h, i) => [low(h.address), i]));
   const unmeasured = new Set(['sniper']);   // giriş zamanı bu kaynaklarda yok
 
-  /* token yaratılış zamanı: en eski pair; bilinmiyorsa fresh ölçülemez */
-  const createdAt = (pairs || []).map(p => p.pairCreatedAt).filter(Boolean).reduce((a, b) => Math.min(a, b), Infinity);
+  /* token yaratılış zamanı: launchpad'in create olayı, yoksa en eski pair; bilinmiyorsa fresh ölçülemez */
+  const pairCreated = (pairs || []).map(p => p.pairCreatedAt).filter(Boolean).reduce((a, b) => Math.min(a, b), Infinity);
+  const createdAt = launch?.createdAt ?? pairCreated;
   if (!isFinite(createdAt)) unmeasured.add('virgin');
 
   /* transferler: sıradan bir cüzdandan (top holder ya da magic node) gelen token "received, not bought";
@@ -50,7 +54,10 @@ export function toScanInput({ address, map, security: sec, pairs, now = Date.now
     members.slice(1).forEach((b, k) => links.push({ a: members[k], b, kind: 'cluster', level: 'proven' }));
   });
 
-  const dev = low(sec?.creator_address);
+  /* dev: launchpad'in create olayındaki creator. Launchpad token'ında GoPlus'ın creator'ı ve creator payı
+     launchpad kontratına aittir, kullanılmaz; creator okunamadıysa dev bilinmez. */
+  const dev = low(launch ? launch.creatorIsContract === false && launch.creator : sec?.creator_address);
+  const slot0 = new Set((launch?.slot0?.buyers || []).map(low));
   const holders = top.map(h => {
     const first = h.address_details?.first_activity_date ? Date.parse(h.address_details.first_activity_date) : null;
     const virginKnown = isFinite(createdAt) && first != null;
@@ -59,45 +66,59 @@ export function toScanInput({ address, map, security: sec, pairs, now = Date.now
       kind: received.has(low(h.address)) ? 'transfer' : 'buy',
       virgin: virginKnown ? first >= createdAt - cfg.sources.freshToleranceMs : false,
       unread: isFinite(createdAt) && first == null,   // yaratılış biliniyor ama cüzdanın ilk aktivitesi okunamadı
+      bundle: slot0.has(low(h.address)),              // launch bloğunda aldı
       dev: !!dev && low(h.address) === dev
     };
   });
 
-  /* havuz rezervi: GoPlus'ın bildiği pair, yoksa en büyük DEX, yoksa en büyük kontrat (bonding curve) */
-  const pairs$ = new Set((sec?.dex || []).map(d => low(d.pair)));
+  /* havuz rezervi: curve'deyse launchpad'in sanal token rezervi (kesin); mezunsa launchpad'in havuzu, GoPlus'ın
+     bildiği pair, en büyük DEX adresi ya da en büyük kontrat */
+  const pairs$ = new Set([launch?.pool, ...(sec?.dex || []).map(d => d.pair)].filter(Boolean).map(low));
   const pool = all.find(h => pairs$.has(low(h.address))) || all.find(h => h.address_details?.is_dex) || all.find(h => h.address_details?.is_contract && !BURN.has(low(h.address)));
-  if (!pool) unmeasured.add('operator');
-  const supply = num(sec?.total_supply) ?? (all[0] ? all[0].holder_data.amount / shareOf(all[0]) : null);
+  const onCurve = !!launch && !launch.graduated;
+  const reserveTokens = onCurve ? launch.virtualReserveTokens ?? null : pool ? pool.holder_data.amount : null;
+  if (reserveTokens == null) unmeasured.add('operator');
+  const supply = num(sec?.total_supply) ?? launch?.supply ?? (all[0] ? all[0].holder_data.amount / shareOf(all[0]) : null);
 
   const best = (pairs || []).reduce((a, p) => (p.liquidity?.usd || 0) > (a?.liquidity?.usd || 0) ? p : a, null);
   const liquidityUsd = best?.liquidity?.usd ?? (sec?.dex?.length ? Math.max(...sec.dex.map(d => num(d.liquidity) || 0)) : null);
   const stats = map?.metrics?.supply_stats || null;
   const su = stats ? unit([stats.bundles, stats.fresh_wallets, stats.dexs]) : 1;
 
+  /* dev payı: creator biliniyorsa Bubblemaps listesindeki payı; listede yoksa ve liste doluysa en küçük
+     listelenenden küçüktür (0 sayılır); liste kısaysa bilinmez. Creator bilinmiyorsa GoPlus'ın oranı. */
+  const devRow = dev ? all.find(h => low(h.address) === dev) : null;
+  const devShare = launch
+    ? dev ? devRow ? shareOf(devRow) : all.length >= cfg.sources.bubblemapsLimit ? 0 : null : null
+    : num(sec?.creator_percent);
+
   return {
-    address, stage: best?.dexId || 'curve',
+    address, stage: onCurve ? 'curve' : best?.dexId || (launch?.graduated ? 'pool' : 'curve'),
     holders, links,
     floatTokens: supply != null ? supply * floatShare : null,
-    reserveTokens: pool ? pool.holder_data.amount : null,
-    liquidityUsd,
+    reserveTokens, liquidityUsd,
     market: { ageDays: isFinite(createdAt) ? (now - createdAt) / 864e5 : null, liquidityUsd, mcap: best?.marketCap ?? null, fdv: best?.fdv ?? null },
     unmeasured: [...unmeasured],
-    /* Guard: creator geçmişi bu kaynaklarda yok (four.meme olayları gerekir); launch bloğu Bubblemaps'in bundle payı */
-    creator: null,
-    slot0Share: stats ? stats.bundles / su : null,
-    devShare: num(sec?.creator_percent),
-    traded: !!best || flag(sec?.is_in_dex) === true,
-    contract: sec ? contractCard(sec) : null,
+    /* Guard: creator geçmişi kayıttan; launch bloğu önce zincirden, yoksa Bubblemaps'in bundle payı */
+    creator: launch?.creatorIsContract ? { contract: true } : history,
+    slot0Share: launch?.slot0 && supply ? launch.slot0.tokens / supply : stats ? stats.bundles / su : null,
+    devShare,
+    traded: !!best || flag(sec?.is_in_dex) === true || (launch?.progress ?? 0) > 0,
+    /* Shield */
+    devAtLaunch: launch?.devAtLaunch ?? null, supply,
+    contract: sec || launch ? contractCard(sec || {}, launch) : null,
+    launch: launch ? launchCard(launch, supply) : null,
     bubblemaps: stats ? { freshWallets: stats.fresh_wallets / su, bundles: stats.bundles / su, top10Adjusted: stats.top_10_adjusted / su, score: map.metrics.scores?.bubblemaps_score ?? null } : null
   };
 }
 
-/* GoPlus kaydından kontrat kartı; her alan true / false / null (bilinmiyor) */
-export function contractCard(sec) {
+/* GoPlus kaydından kontrat kartı; her alan true / false / null (bilinmiyor). GoPlus vergi vermiyorsa flap'in
+   Portal'daki vergisi kullanılır. */
+export function contractCard(sec, launch = null) {
   const lp = sec.lp_holders || [];
   return {
     honeypot: flag(sec.is_honeypot), cannotBuy: flag(sec.cannot_buy), cannotSellAll: flag(sec.cannot_sell_all),
-    buyTax: num(sec.buy_tax), sellTax: num(sec.sell_tax), transferTax: num(sec.transfer_tax),
+    buyTax: num(sec.buy_tax) ?? launch?.buyTax ?? null, sellTax: num(sec.sell_tax) ?? launch?.sellTax ?? null, transferTax: num(sec.transfer_tax),
     openSource: flag(sec.is_open_source), proxy: flag(sec.is_proxy), mintable: flag(sec.is_mintable),
     ownerAddress: sec.owner_address || null, hiddenOwner: flag(sec.hidden_owner), takeBackOwnership: flag(sec.can_take_back_ownership),
     ownerChangeBalance: flag(sec.owner_change_balance), pausable: flag(sec.transfer_pausable), blacklist: flag(sec.is_blacklisted),
@@ -107,3 +128,12 @@ export function contractCard(sec) {
     lpBurnedShare: lp.length ? sum(lp.filter(h => BURN.has(low(h.address))), h => num(h.percent) || 0) : null
   };
 }
+
+/* raporda gösterilen launchpad kartı */
+export const launchCard = (l, supply) => ({
+  platform: l.platform, graduated: l.graduated, status: l.status ?? (l.graduated ? 'DEX' : 'curve'), progress: l.progress ?? null,
+  pool: l.pool ?? null, creator: l.creator, creatorIsContract: l.creatorIsContract ?? null, createdAt: l.createdAt, block: l.block,
+  slot0Share: l.slot0 && supply ? l.slot0.tokens / supply : null, slot0Buyers: l.slot0 ? l.slot0.buyers.length : null,
+  devAtLaunchShare: l.devAtLaunch != null && supply ? l.devAtLaunch / supply : null,
+  buyTax: l.buyTax ?? null, sellTax: l.sellTax ?? null
+});

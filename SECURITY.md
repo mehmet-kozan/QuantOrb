@@ -1,10 +1,12 @@
 # Güvenlik
 
-QuantumOrb hiç kimseden private key, seed phrase ya da para istemez. Bu kod yalnızca herkese açık API'leri
-okur, işlem imzalamaz, cüzdana bağlanmaz. Bunu isteyen bir şey QuantumOrb değildir.
+QuantumOrb hiç kimseden private key, seed phrase ya da para istemez. Bu kod yalnızca herkese açık API'leri ve
+zinciri okur (`eth_call`, `eth_getLogs`), işlem imzalamaz, cüzdana bağlanmaz. Bunu isteyen bir şey QuantumOrb
+değildir.
 
-API anahtarları (`BUBBLEMAPS_API_KEY`, `GOPLUS_TOKEN`) ortam değişkeniyle verilir; `.env` dosyası
-`.gitignore` içindedir ve depoya girmez.
+API anahtarları (`BUBBLEMAPS_API_KEY`, isteğe bağlı `GOPLUS_TOKEN`) ve RPC adresi (`BSC_RPC_URL`, anahtar
+taşıyabilir) ortam değişkeniyle verilir; `.env` dosyası `.gitignore` içindedir ve depoya girmez. Lansman kaydı
+(`data/`) de depoya girmez.
 
 ## Açık bildirme
 
