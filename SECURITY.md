@@ -1,11 +1,12 @@
-# Security
+# Güvenlik
 
-QuantumOrb never asks anyone for a private key, a seed phrase or funds - not on the site, not in the
-bot, not in a message. Anything that does is not QuantumOrb. The site and the Telegram bot are not
-public yet: their links will be published in this repository first, and any "QuantumOrb" site or bot
-before that is not ours.
+QuantumOrb hiç kimseden private key, seed phrase ya da para istemez. Bu kod yalnızca herkese açık API'leri
+okur, işlem imzalamaz, cüzdana bağlanmaz. Bunu isteyen bir şey QuantumOrb değildir.
 
-## Reporting a vulnerability
+API anahtarları (`BUBBLEMAPS_API_KEY`, `GOPLUS_TOKEN`) ortam değişkeniyle verilir; `.env` dosyası
+`.gitignore` içindedir ve depoya girmez.
 
-If you find a security problem in the site or the bot, please do not describe it in a public issue.
-Open an issue titled **security** with no details, and a private channel will be set up for the report.
+## Açık bildirme
+
+Bir güvenlik sorunu bulursanız lütfen ayrıntıyı herkese açık bir issue'da yazmayın. Başlığı **security**
+olan, ayrıntısız bir issue açın; özel bir kanal kurulur.

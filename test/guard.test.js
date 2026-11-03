@@ -1,13 +1,12 @@
-'use strict';
-/* Guard's three checks at their thresholds: a launch is held back only on evidence. */
-const test = require('node:test');
-const assert = require('node:assert');
-const { guard, historyCheck, slot0Check, devCheck } = require('../rules');
+/* Guard'ın üç kontrolü eşiklerinde: bir lansman sadece kanıtla tutulur. */
+import test from 'node:test';
+import assert from 'node:assert';
+import { guard, historyCheck, slot0Check, devCheck } from '../src/rules/index.js';
 
 test('creator history from the chain: 10+ launches and under 10% graduated is held', () => {
   assert.strictEqual(historyCheck({ launched: 10, graduated: 0, chain: true }).ok, false);
-  assert.strictEqual(historyCheck({ launched: 10, graduated: 1, chain: true }).ok, true);     /* exactly 10% passes */
-  assert.strictEqual(historyCheck({ launched: 9, graduated: 0, chain: true }).ok, true);      /* under 10 launches never holds */
+  assert.strictEqual(historyCheck({ launched: 10, graduated: 1, chain: true }).ok, true);     /* tam %10 geçer */
+  assert.strictEqual(historyCheck({ launched: 9, graduated: 0, chain: true }).ok, true);      /* 10'un altı asla tutmaz */
   assert.strictEqual(historyCheck({ launched: 2500, graduated: 4, chain: true }).ok, false);
 });
 
@@ -18,10 +17,9 @@ test('creator history from the chain, in the words the token page uses', () => {
   assert.strictEqual(historyCheck({ launched: 1, graduated: 1, chain: true }).text, '1 token launched, 1 graduated · from the chain');
 });
 
-test('only the server\'s own record: evidence when it already shows a serial creator, otherwise not read', () => {
+test('only our own record: evidence when it already shows a serial creator, otherwise not read', () => {
   assert.strictEqual(historyCheck({ launched: 12, alive: 1, local: true }).ok, false);
-  const few = historyCheck({ launched: 3, alive: 3, local: true });
-  assert.strictEqual(few.ok, null);                                                          /* never a made-up pass */
+  assert.strictEqual(historyCheck({ launched: 3, alive: 3, local: true }).ok, null);
   assert.strictEqual(historyCheck({ launched: 1, alive: 1, local: true }).text, 'creator check unavailable: the public RPC did not answer');
 });
 
@@ -51,5 +49,5 @@ test('one failed check holds the launch and gives its reason', () => {
 test('a check that is not read makes Guard pending, not a pass on evidence', () => {
   const g = guard({ history: { launched: 2, alive: 2, local: true }, slot0Share: 0.05, devShare: 0.02 });
   assert.strictEqual(g.pass, true);
-  assert.strictEqual(g.pending, true);                    /* the site shows GUARD · PARTIAL */
+  assert.strictEqual(g.pending, true);
 });

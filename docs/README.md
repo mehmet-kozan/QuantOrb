@@ -1,10 +1,9 @@
 # docs/
 
-| Page | |
+| Sayfa | |
 |---|---|
-| [`architecture.md`](architecture.md) | How QuantumOrb fits together, and where the open part sits |
-| [`scoring.md`](scoring.md) | The score, operators, red flags, caps and the sell scenario, rule by rule, with the code |
-| [`guard.md`](guard.md) | Shield on every new launch, and Guard's three checks on token pages and scans |
-
-The same rules, written for traders rather than developers, will be on the site's *How it works* page
-when it opens.
+| [`mimari.md`](mimari.md) | Katmanlar, bir taramada ne olur, ne yok |
+| [`skor.md`](skor.md) | Kurallar tek tek: parçalar, operatörler, bayraklar, cap'ler, Guard, Shield, tüm eşikler |
+| [`kaynaklar.md`](kaynaklar.md) | Bubblemaps, GoPlus ve DexScreener alanlarının `ScanInput`'a eşlemesi ve varsayımlar |
+| [`kararlar.md`](kararlar.md) | Tarihli kararlar ve sıradaki işler |
+| [`new-implementation.md`](new-implementation.md) | Ürün talimatı (tam hedef); bu sürüm onun bir alt kümesi |

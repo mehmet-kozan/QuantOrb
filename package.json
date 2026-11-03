@@ -1,15 +1,16 @@
 {
-  "name": "quantumorb-rules",
-  "version": "1.0.0",
+  "name": "quantumorb-bsc",
+  "version": "2.0.0",
   "private": true,
-  "description": "QuantumOrb's open rules: the score, operators and Guard checks the scanner runs, with tests and example tokens.",
-  "main": "rules/index.js",
+  "type": "module",
+  "description": "BSC memecoin holder tarayıcısı: Bubblemaps, GoPlus ve DexScreener verisi üzerinde QuantumOrb skor kuralları.",
+  "main": "src/rules/index.js",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "test": "node --test",
-    "verdict": "node rules/cli.js"
+    "scan": "node src/cli.js"
   }
 }

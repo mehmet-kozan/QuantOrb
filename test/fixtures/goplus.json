@@ -1,0 +1,37 @@
+{
+  "_note": "Aynı uydurma token için GoPlus token_security/56 kaydı (result[adres]). Alanlar \"1\"/\"0\" string; olmayan alan bilinmiyor demektir.",
+  "token_name": "Fixture Token",
+  "token_symbol": "FIX",
+  "total_supply": "1000000000",
+  "holder_count": "120",
+  "is_open_source": "1",
+  "is_proxy": "0",
+  "is_mintable": "0",
+  "owner_address": "",
+  "can_take_back_ownership": "0",
+  "owner_change_balance": "0",
+  "hidden_owner": "0",
+  "selfdestruct": "0",
+  "is_in_dex": "1",
+  "dex": [
+    { "name": "PancakeV2", "liquidity_type": "UniV2", "liquidity": "12000.5", "pair": "0xpool" }
+  ],
+  "buy_tax": "0.05",
+  "sell_tax": "0.05",
+  "transfer_tax": "0",
+  "cannot_buy": "0",
+  "cannot_sell_all": "0",
+  "is_honeypot": "0",
+  "transfer_pausable": "0",
+  "is_blacklisted": "0",
+  "is_anti_whale": "0",
+  "trading_cooldown": "0",
+  "creator_address": "0xw05",
+  "creator_percent": "0.04",
+  "lp_total_supply": "1000",
+  "lp_holder_count": "2",
+  "lp_holders": [
+    { "address": "0x000000000000000000000000000000000000dEaD", "tag": "Null Address", "is_contract": 0, "balance": "900", "percent": "0.9", "is_locked": 0 },
+    { "address": "0xlocker", "tag": "PinkLock", "is_contract": 1, "balance": "100", "percent": "0.1", "is_locked": 1 }
+  ]
+}

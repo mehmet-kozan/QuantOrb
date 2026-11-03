@@ -1,0 +1,16 @@
+[
+  {
+    "chainId": "bsc",
+    "dexId": "pancakeswap",
+    "pairAddress": "0xpool",
+    "baseToken": { "address": "0xt0ken", "name": "Fixture Token", "symbol": "FIX" },
+    "quoteToken": { "address": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c", "name": "Wrapped BNB", "symbol": "WBNB" },
+    "priceUsd": "0.00005",
+    "liquidity": { "usd": 12000.5, "base": 400000000, "quote": 10 },
+    "fdv": 50000,
+    "marketCap": 45000,
+    "pairCreatedAt": 1760000000000,
+    "volume": { "h24": 3000 },
+    "txns": { "h24": { "buys": 40, "sells": 25 } }
+  }
+]

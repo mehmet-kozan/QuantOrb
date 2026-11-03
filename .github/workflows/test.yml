@@ -21,4 +21,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
-      - run: node rules/cli.js examples/site-example.json
+      - run: node src/cli.js examples/site-example.json

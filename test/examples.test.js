@@ -1,21 +1,18 @@
-'use strict';
-/* Every example in examples/ carries the verdict it must get. Nine of them were produced by the closed
-   server itself (the site's example token and eight scans on the simulated chain), so passing here means
-   the open rules give the same answer as the QuantumOrb server. */
-const test = require('node:test');
-const assert = require('node:assert');
-const fs = require('fs');
-const path = require('path');
-const { scanVerdict, historyCheck } = require('../rules');
+/* examples/ içindeki her dosya alması gereken verdict'i (expect) taşır. İlk dokuzu Solana sürümünün
+   kapalı sunucusunun ürettiği sonuçlardır; burada geçmeleri kuralların değişmediğini gösterir. */
+import test from 'node:test';
+import assert from 'node:assert';
+import { readdirSync, readFileSync } from 'node:fs';
+import { scanVerdict, historyCheck } from '../src/rules/index.js';
 
-const DIR = path.join(__dirname, '..', 'examples');
-const files = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
+const DIR = new URL('../examples/', import.meta.url);
+const files = readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 
 test('there are examples to check', () => assert.ok(files.length >= 12));
 
 for (const f of files) {
-  test('examples/' + f, () => {
-    const x = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+  test(`examples/${f}`, () => {
+    const x = JSON.parse(readFileSync(new URL(f, DIR), 'utf8'));
     const r = scanVerdict(x);
     assert.strictEqual(r.state, x.expect.state);
     assert.strictEqual(r.band, x.expect.band);
@@ -24,7 +21,6 @@ for (const f of files) {
     assert.strictEqual(r.headline, x.expect.headline);
     assert.deepStrictEqual((r.gates || []).map(g => g.text), x.expect.gates);
     assert.strictEqual(r.scenario ? +r.scenario.drop.toFixed(4) : null, x.expect.scenarioDrop);
-    /* Guard's creator history, in the words the server's token page used */
     if (x.expect.creatorCheck) {
       const c = historyCheck(x.creator);
       assert.strictEqual(c.ok, x.expect.creatorCheck.ok);

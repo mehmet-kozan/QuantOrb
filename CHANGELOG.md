@@ -1,5 +1,19 @@
 # Changelog
 
+## 3 Kasım 2026 · BSC sürümü
+
+- Depo artık BNB Chain için çalışan bir tarayıcı: Bubblemaps (holder'lar, cluster'lar, transferler),
+  GoPlus (kontrat güvenliği) ve DexScreener (piyasa) üzerinde QuantumOrb skor kuralları. `src/` altında ES
+  modülleri, bağımlılık yok, Node 18+.
+- Kurallar `rules/` yerine `src/rules/` içinde; eşikler `src/config/rules.js`. İki BSC eklemesi: honeypot
+  kırmızı bayrak, satış vergisi ≥ %20 cap. Ölçülemeyen parça `null` olur ve kalan ağırlıklar 100'e ölçeklenir.
+- Düzeltmeler: pack en az 3 cüzdan ister ve union-find ile kurulur, bir cüzdan iki pack'e giremez (pay artık
+  float'ı aşamaz). Shield'ın dev kontrolü arzı zorunlu ister.
+- `src/adapter.js` kaynak cevaplarını `ScanInput`'a çevirir; `test/fixtures/` üç kaynağın örnek cevabı.
+- Dokümantasyon Türkçe: `docs/mimari.md`, `docs/skor.md`, `docs/kaynaklar.md`, `docs/kararlar.md`.
+- Solana sürümünün örnekleri (`examples/`) ve beklenen sonuçları olduğu gibi duruyor; hepsi geçiyor.
+
+
 ## 1 November 2026 · the repository follows the new site and bot
 
 - [`rules/`](rules): Guard's creator history now uses the chain record and the Shield rule (10+ launches,

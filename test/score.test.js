@@ -1,13 +1,12 @@
-'use strict';
-/* The score rules one by one, at their edges. The numbers are the ones in docs/scoring.md. */
-const test = require('node:test');
-const assert = require('node:assert');
-const { part, impact, WEIGHTS, scanVerdict } = require('../rules');
+/* Skor kuralları tek tek, sınır değerlerinde. Sayılar docs/skor.md'dekiler. */
+import test from 'node:test';
+import assert from 'node:assert';
+import { part, impact, WEIGHTS, scanVerdict } from '../src/rules/index.js';
 
-const holders = (shares, extra) => shares.map((s, i) => Object.assign({ share: s, kind: 'buy' }, extra && extra(i)));
-const spread = n => Array.from({ length: n }, () => 0.012);          /* 20 × 1.2% = 24% of float */
+const holders = (shares, extra) => shares.map((s, i) => ({ share: s, kind: 'buy', ...(extra ? extra(i) : {}) }));
+const spread = n => Array.from({ length: n }, () => 0.012);          /* 20 × %1.2 = float'ın %24'ü */
 const deep = { floatTokens: 1e9, reserveTokens: 5e9, liquidityUsd: 500000, links: [] };
-const run = (h, more) => scanVerdict(Object.assign({}, deep, { holders: h }, more));
+const run = (h, more) => scanVerdict({ ...deep, holders: h, ...more });
 
 test('the five parts add up to 100', () => {
   assert.strictEqual(Object.values(WEIGHTS).reduce((a, b) => a + b, 0), 100);
@@ -24,12 +23,13 @@ test('a part is full at its first mark, zero at its second, straight in between'
   assert.strictEqual(part('sniper', 0.15), 0);
   assert.strictEqual(part('concentration', 0.25), 10);
   assert.strictEqual(part('concentration', 0.70), 0);
+  assert.strictEqual(part('sniper', null), null);
 });
 
 test('price impact is a constant-product sale', () => {
   assert.strictEqual(impact(0, 100), 0);
   assert.strictEqual(impact(100, 0), 0);
-  assert.ok(Math.abs(impact(100, 100) - 0.75) < 1e-12);   /* selling as many tokens as the pool holds: −75% */
+  assert.ok(Math.abs(impact(100, 100) - 0.75) < 1e-12);   /* havuz kadar token satmak: −%75 */
 });
 
 test('twenty independent wallets with history score CLEAN', () => {
@@ -42,7 +42,6 @@ test('twenty independent wallets with history score CLEAN', () => {
 test('bands: CLEAN 80+, OK 60–79, RISKY 40–59, DANGER under 40', () => {
   const bandOf = s => s >= 80 ? 'CLEAN' : s >= 60 ? 'OK' : s >= 40 ? 'RISKY' : 'DANGER';
   const seen = new Set();
-  /* sweep fresh wallets (up to 75%, under the red flag) and received supply (up to 9%, under the red flag) */
   for (let fresh = 0; fresh <= 15; fresh++) {
     for (let t = 0; t <= 9; t += 3) {
       const h = holders(spread(20), i => ({ virgin: i < fresh }));
@@ -54,8 +53,16 @@ test('bands: CLEAN 80+, OK 60–79, RISKY 40–59, DANGER under 40', () => {
     }
   }
   assert.ok(seen.has('CLEAN') && seen.has('OK') && seen.has('RISKY'));
-  /* 50% fresh: 25 × (0.8 − 0.5) / 0.7 */
-  assert.strictEqual(run(holders(spread(20), i => ({ virgin: i < 10 }))).parts.virgin, 10.7);
+  assert.strictEqual(run(holders(spread(20), i => ({ virgin: i < 10 }))).parts.virgin, 10.7);   /* 25 × (0.8 − 0.5) / 0.7 */
+});
+
+test('an unmeasured part is null and the rest is scaled to 100', () => {
+  const r = run(holders(spread(20), i => ({ virgin: i < 10 })), { unmeasured: ['sniper'] });
+  assert.strictEqual(r.parts.sniper, null);
+  assert.strictEqual(r.score, Math.round((35 + 10.7 + 20 + 10) * 100 / 90));
+  assert.deepStrictEqual(r.unmeasured, ['sniper']);
+  const noVirgin = run(holders(spread(20), i => ({ virgin: true })), { unmeasured: ['virgin'] });
+  assert.ok(!noVirgin.gates.some(g => /never traded/.test(g.text)));   /* ölçülemeyen parça bayrak da vermez */
 });
 
 test('red flag: 80% of read wallets never traded before → DANGER whatever the score', () => {
@@ -74,7 +81,7 @@ test('red flag: 10% of float received by transfer → DANGER', () => {
 test('red flag: linked wallets that could move the price 50% → DANGER; one honest whale only caps', () => {
   const h = holders([0.2, 0.2].concat(spread(18)));
   const thin = { reserveTokens: 4e8 };
-  const linked = run(h, Object.assign({ links: [{ a: 0, b: 1, kind: 'same_tx', level: 'proven' }] }, thin));
+  const linked = run(h, { links: [{ a: 0, b: 1, kind: 'same_tx', level: 'proven' }], ...thin });
   assert.strictEqual(linked.band, 'DANGER');
   const whale = run(holders([0.4].concat(spread(19))), thin);
   assert.notStrictEqual(whale.band, 'DANGER');
@@ -102,6 +109,7 @@ test('unread wallets are never evidence; 3 or more cap the verdict and make it P
   const two = run(holders(spread(20), i => ({ unread: i < 2 })));
   assert.strictEqual(two.state, 'ok');
   assert.ok(two.gates.some(g => g.note));
+  assert.strictEqual(two.band, 'CLEAN');                   /* not cap değildir */
   const three = run(holders(spread(20), i => ({ unread: i < 3 })));
   assert.strictEqual(three.state, 'partial');
   assert.ok(three.score <= 59);
@@ -111,12 +119,11 @@ test('a wallet under 0.2% of float that was not read does not count toward PARTI
   const small = holders(spread(17).concat([0.0015, 0.0015, 0.0015]), i => ({ unread: i >= 17 }));
   assert.strictEqual(run(small).state, 'ok');
   const read = holders(spread(17).concat([0.003, 0.003, 0.003]), i => ({ unread: i >= 17 }));
-  assert.strictEqual(run(read).state, 'partial');            /* 0.3% is read deeply, so unread there counts */
+  assert.strictEqual(run(read).state, 'partial');
 });
 
 test('the dev wallet is left out of fresh wallets and snipers', () => {
-  const h = holders(spread(20), i => ({ dev: i === 0, virgin: i === 0, sniper: i === 0 }));
-  const r = run(h);
+  const r = run(holders(spread(20), i => ({ dev: i === 0, virgin: i === 0, sniper: i === 0 })));
   assert.strictEqual(r.metrics.virgin, 0);
   assert.strictEqual(r.metrics.sniper, 0);
 });
@@ -129,10 +136,9 @@ test('snipers who already sold are not counted', () => {
 });
 
 test('the sell scenario appears only on DANGER, and only when the drop is 40% or more', () => {
-  const ok = run(holders(spread(20)));
-  assert.strictEqual(ok.scenario, null);
+  assert.strictEqual(run(holders(spread(20))).scenario, null);
   const h = holders(spread(20), i => ({ virgin: i < 16 }));
-  const shallow = run(h);                                  /* DANGER, but a deep pool: no scenario */
+  const shallow = run(h);
   assert.strictEqual(shallow.band, 'DANGER');
   assert.strictEqual(shallow.scenario, null);
   const steep = run(h, { reserveTokens: 1e8 });
@@ -141,11 +147,17 @@ test('the sell scenario appears only on DANGER, and only when the drop is 40% or
 
 test('too early under 10 holders, too established when old, deep and big', () => {
   assert.strictEqual(run(holders(spread(9))).band, 'EARLY');
-  assert.strictEqual(run(holders(spread(10))).band !== 'EARLY', true);
-  const old = run(holders(spread(20)), { market: { ageDays: 31, liquidityUsd: 600000, mcap: 2e7 } });
-  assert.strictEqual(old.band, 'ESTABLISHED');
-  const fdvOnly = run(holders(spread(20)), { market: { ageDays: 31, liquidityUsd: 600000, mcap: null, fdv: 2e7 } });
-  assert.strictEqual(fdvOnly.band, 'ESTABLISHED');        /* no market cap known: the FDV decides */
-  const young = run(holders(spread(20)), { market: { ageDays: 29, liquidityUsd: 600000, mcap: 2e7 } });
-  assert.notStrictEqual(young.band, 'ESTABLISHED');
+  assert.notStrictEqual(run(holders(spread(10))).band, 'EARLY');
+  assert.strictEqual(run(holders(spread(20)), { market: { ageDays: 31, liquidityUsd: 600000, mcap: 2e7 } }).band, 'ESTABLISHED');
+  assert.strictEqual(run(holders(spread(20)), { market: { ageDays: 31, liquidityUsd: 600000, mcap: null, fdv: 2e7 } }).band, 'ESTABLISHED');
+  assert.notStrictEqual(run(holders(spread(20)), { market: { ageDays: 29, liquidityUsd: 600000, mcap: 2e7 } }).band, 'ESTABLISHED');
+  assert.notStrictEqual(run(holders(spread(20)), { market: { ageDays: null, liquidityUsd: 600000, mcap: 2e7 } }).band, 'ESTABLISHED');
+});
+
+test('contract gates apply in every state: a honeypot is DANGER even with a full score', () => {
+  const r = run(holders(spread(20)), { contract: { honeypot: true } });
+  assert.strictEqual(r.band, 'DANGER');
+  const early = run(holders(spread(5)), { contract: { honeypot: true } });
+  assert.strictEqual(early.band, 'EARLY');
+  assert.ok(early.gates.some(g => g.hard));
 });

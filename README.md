@@ -1,89 +1,35 @@
-<div align="center">
+# QuantumOrb · BSC
 
-![QuantumOrb](assets/banner.png)
+**BNB Chain memecoin'leri için holder tarayıcısı.** 20 cüzdan 4 kişi olabilir. QuantumOrb bir token'ı
+gerçekte kimin tuttuğunu gösterir.
 
-# QuantumOrb
+Bir token adresi verirsin. QuantumOrb en büyük holder'ları, aralarındaki bağları ve kontratın
+yapabileceklerini üç hazır kaynaktan okur, birbirine bağlı cüzdanları tek **operatör** olarak birleştirir ve
+0–100 arası bir skorla bir verdict üretir: **CLEAN**, **OK**, **RISKY** ya da **DANGER**.
 
-**A memecoin holder scanner for Solana.**<br>
-20 wallets can be 4 people. QuantumOrb shows who really holds a token.
+| Kaynak | Ne verir | Anahtar |
+|---|---|---|
+| [Bubblemaps Data API](https://docs.bubblemaps.io/data/api/introduction.md) | Holder'lar, cluster'lar (bağlı cüzdanlar), cüzdanlar arası transferler, ilk aktivite tarihleri | `BUBBLEMAPS_API_KEY` (zorunlu) |
+| [GoPlus Token Security](https://docs.gopluslabs.io/reference/response-details) | Honeypot, vergiler, owner yetkileri, LP kilidi, creator payı | isteğe bağlı `GOPLUS_TOKEN` |
+| [DexScreener](https://docs.dexscreener.com/api/reference) | Likidite, market cap, FDV, pair yaşı | yok |
 
-The site and the Telegram bot open soon. Their links will appear here first.
+Kurallar Solana sürümünden birebir taşındı; BSC için iki ekleme var: **honeypot** kırmızı bayrak, **yüksek
+satış vergisi** cap. Tamamı [`docs/skor.md`](docs/skor.md) içinde.
 
-[![rules](https://github.com/QuantumOrb/QuantOrb/actions/workflows/test.yml/badge.svg)](https://github.com/QuantumOrb/QuantOrb/actions/workflows/test.yml)
-![node](https://img.shields.io/badge/node-18%2B-5d94e8)
-![dependencies](https://img.shields.io/badge/dependencies-none-4fdf8f)
+## Çalıştır
 
-</div>
-
----
-
-Paste a token address. In about ten seconds QuantumOrb reads the top holders from the chain and tells
-you who really holds the token, how far the price falls if they sell, and what the owner can still
-change. Alongside the scanner, a live Radar watches every new pump.fun launch and Shield checks who
-made each one; on a token page Guard goes deeper. A Telegram bot that brings all of it to your chat is in
-closed testing.
-
-<p align="center"><img src="assets/screens/home.png" alt="QuantumOrb: the scanner" width="100%"></p>
-
-## One scan, three answers
-
-| Question | What the scan reads |
-|---|---|
-| **Who really holds it?** | The top 20 wallets by share of the real float. The curve, pools, lockers and burn addresses are left out, so a pool never looks like a whale. Wallets that belong together are merged into **operators**. |
-| **What happens if they sell?** | A sell scenario: how far the price would fall if the linked, fresh or transferred wallets sold into today's liquidity. |
-| **What else can hurt you?** | Owner powers, who can pull the liquidity, the first 20 buyers, and who made the token: Guard's three checks on the dev wallet that signed the launch. |
-
-Every scan ends in a **score from 0 to 100** and a verdict: **CLEAN**, **OK**, **RISKY** or **DANGER**.
-Some patterns are too clear for a weighted sum, and they force a red flag whatever the score. When a
-token is too young or too established for holder patterns to mean anything, the scanner says so and
-gives no score.
-
-<p align="center"><img src="assets/screens/token.png" alt="A token page after a scan" width="100%"><br>
-<sub><b>A token page.</b> The verdict and its reasons, the live scan log, what the owner can still change, who can pull the liquidity, and who made it, with Guard. The market header refreshes every minute while the page is open, and a figure no source knows says N/A, never $0.</sub></p>
-
-<table>
-<tr>
-<td width="50%" valign="top"><img src="assets/screens/scan-report.png" alt="The scan report"><br>
-<sub><b>The report.</b> Score, sell scenario and red flags side by side.</sub></td>
-<td width="50%" valign="top"><img src="assets/screens/operator-map.png" alt="The operator map"><br>
-<sub><b>Operators.</b> Twenty holders collapse into a few operators as the scanner finds proof that wallets belong together.</sub></td>
-</tr>
-</table>
-
-## Five checks behind every verdict
-
-<p align="center"><img src="assets/screens/checks.png" alt="Five checks" width="100%"></p>
-
-| Check | What it reads |
-|---|---|
-| **Holders** | The top 20 wallets by share of the real float: bought or received, fresh or experienced (from none to 100+ tokens traded before), how fast they got in |
-| **Linked wallets** | Wallets that act as one: the same buy transaction, tokens from one source, transfers between holders, packs of fresh wallets |
-| **First buyers** | All of the first 20 buyers after launch, even behind a bundle that trades with itself, and what each did since: holding, added, sold, sent to the same wallet |
-| **Owner powers** | Mint and freeze authority, mutable metadata, Token-2022 transfer fees |
-| **Liquidity control** | Who holds the right to withdraw the pool, and how much of it |
-
-The score is a fixed, written set of rules, not a black box. Every weight, threshold and red flag is
-written down in [`docs/scoring.md`](docs/scoring.md), and the site's *How it works* page lists the same rules
-in plain words.
-
-<p align="center"><img src="assets/screens/rules.png" alt="How the score is built" width="100%"></p>
-
-## Check the score yourself
-
-The code that turns a scan into a verdict is open: [`rules/`](rules). The score, operators, red flags,
-caps, the sell scenario, Guard's checks and Shield's rule are the server's own functions, not a rewrite.
-The examples carry results the server itself produced, and the tests hold the open code to them.
+Node 18 veya üstü, bağımlılık yok.
 
 ```bash
 git clone https://github.com/QuantumOrb/QuantOrb && cd QuantOrb
-npm test                                        # Node 18+, no dependencies
-node rules/cli.js examples/site-example.json    # the example token on the home page
+npm test                                              # kurallar, eşleme ve örnekler
+
+BUBBLEMAPS_API_KEY=... node src/cli.js 0xTokenAdresi  # canlı tarama
+node src/cli.js 0xTokenAdresi --json                  # tam sonuç
+node src/cli.js examples/site-example.json            # hazır bir girdi, ağ yok
 ```
 
 ```
-The example token on the QuantumOrb home page · $GRUMPKIN
-20 wallets → 13 operators, biggest holds 41.1% of float, could move price −67% if sold
-
 score 12 / 100 · DANGER
   Biggest operator        0.0 / 35
   Fresh wallets           9.8 / 25
@@ -94,115 +40,50 @@ RED FLAG · biggest operator could move price −67% if sold (41.1% of float, 6 
 RED FLAG · 14.0% of float was received by transfer, not bought
 CAP · proven operator of 6 wallets holds 41.1% of float
 CAP · pack of 3 wallets holds 9.9% of float
-SCENARIO · if the linked, fresh and transferred wallets sold their 54.9% of float into today's liquidity, the price would fall about 75%
 ```
 
-Rule by rule: [`docs/scoring.md`](docs/scoring.md) · [`docs/guard.md`](docs/guard.md) (Guard and Shield).
+Kod içinde de kullanılabilir:
 
-## Radar, Shield and Guard
+```js
+import { scan } from './src/scan.js';
+const r = await scan('0x...');          // { score, band, gates, operators, guard, contract, sources, ... }
 
-New pump.fun launches appear on the Radar seconds after they go live. It keeps the last 1,000, about the
-last hour, and your filters run over all of them: market cap, curve progress, socials, keywords. Send the
-filters to the bot to get the same feed in Telegram.
+import { scanVerdict } from './src/rules/index.js';
+scanVerdict(input);                     // saf kural motoru, ağ yok; girdi biçimi examples/ içinde
+```
 
-Before you see a launch, **Shield** checks who made it, on free public data:
+## Bir tarama ne söyler
 
-- **Creator history** · every pump.fun launch of the dev wallet, read from the chain once the launch
-  reaches 10% of its curve or 20 buyers. 10 or more launches with under 10% graduated is a serial creator.
-- **Dev at launch** · how much of the supply the dev bought in the launch itself. 15% or more is held.
-
-On a token page and in every scan, **Guard** goes deeper with three checks: the creator's launches,
-how much supply was bought in the launch slot, and how much the dev still holds now. Either way a launch
-is held back only on evidence, the reason is always shown, and a check that could not be read says so:
-it is never a silent pass.
-
-<p align="center"><img src="assets/screens/radar.png" alt="Radar" width="100%"></p>
-
-<table>
-<tr>
-<td width="50%" valign="top"><img src="assets/screens/guard.png" alt="Shield"><br>
-<sub><b>Shield.</b> Two checks on every launch, live decisions as they happen.</sub></td>
-<td width="50%" valign="top"><img src="assets/screens/launches.png" alt="The last 1,000 launches"><br>
-<sub><b>The last 1,000 launches.</b> Each new token flashes in where the oldest one was. Few ever reach a pool.</sub></td>
-</tr>
-</table>
-
-## The Telegram bot · coming soon
-
-The site tells you what a token is. The bot tells you when it changes. It is in closed testing; its
-link will appear here when it opens.
-
-| Command | What it does |
+| Soru | Okunan |
 |---|---|
-| `/alerts` | New pump.fun launches the moment they pass **your** filters: market cap, bonding-curve progress, required socials, SOL pairs only, keywords |
-| `/watch` | Track a token: graduation from the bonding curve, market-cap moves up or down, milestones from $10K to $100M |
-| `/follow` | Track a wallet: every new position and every full exit |
-| `/dev` | Know the second a dev wallet launches a token, with its Shield record |
-| `/token` | Any token on demand: market cap, price, curve, volume, buys and sells, price change, the creator and Shield. Or just paste an address |
-| `/new` · `/list` | The latest launches, and everything you follow in one place |
-| `/scan` | On-chain intelligence in the chat: hidden ownership, wallet clusters, capital flows · *coming soon* |
+| **Gerçekte kim tutuyor?** | Float'a göre en büyük 20 cüzdan. Havuz, bonding curve, borsa ve burn adresleri dışarıda. Bubblemaps'in bağlı saydığı cüzdanlar ve birbirine transfer yapanlar tek operatör. |
+| **Satarlarsa ne olur?** | En büyük operatör her şeyi havuza satarsa fiyat ne kadar düşer; DANGER'da şüpheli kümenin toplu satış senaryosu. |
+| **Kontrat ne yapabilir?** | Honeypot, alım/satım vergisi, owner yetkileri (mint, pause, blacklist), LP kilidi ve yakımı, creator'ın payı. |
 
-**Shield** checks the creator of every launch before an alert goes out: every pump.fun launch of that
-wallet, straight from the chain. A wallet that launches by the dozen and almost never graduates is a
-serial creator, and its launches are screened out. The same check comes with every token card and every
-dev you follow. New launches reach the bot the moment they happen, with no polling delay.
+Her tarama bir skor ve verdict ile biter. Bazı desenler ağırlıklı toplam için fazla nettir: skor ne olursa
+olsun DANGER verirler. Ölçülemeyen bir parça varsa (bu kaynaklarda sniper zamanlaması yok) rapor bunu söyler
+ve kalan parçalar 100'e ölçeklenir. **Okunamayan veri hiçbir zaman kanıt değildir**: ne lehte, ne aleyhte.
 
-<sub>Development build on made-up data. The bot's name, the names of coins and wallets, addresses,
-figures and the descriptions are hidden until it opens.</sub>
+## Depo
 
-<table>
-<tr>
-<td width="50%" valign="top"><img src="assets/screens/bot-start.png" alt="The bot: start"><br>
-<sub><b>Start.</b> What it does, free for everybody, and what is coming.</sub></td>
-<td width="50%" valign="top"><img src="assets/screens/bot-alerts.png" alt="The bot: alerts"><br>
-<sub><b>Alerts.</b> Your filters, one tap each, and an early launch that just passed them and Shield.</sub></td>
-</tr>
-<tr>
-<td valign="top"><img src="assets/screens/bot-token.png" alt="The bot: a token card"><br>
-<sub><b>Any token.</b> Send an address, get its card: market, curve, creator, Shield, and buys and sells from 5 minutes to 24 hours.</sub></td>
-<td valign="top"><img src="assets/screens/bot-watch.png" alt="The bot: watch"><br>
-<sub><b>Watch.</b> A token you follow moves, graduates and crosses a milestone: every reason in one message.</sub></td>
-</tr>
-<tr>
-<td valign="top"><img src="assets/screens/bot-dev.png" alt="The bot: dev"><br>
-<sub><b>Dev.</b> Shield's record on a serial creator, and the alert the second that wallet launches again.</sub></td>
-<td valign="top"><img src="assets/screens/bot-follow.png" alt="The bot: follow"><br>
-<sub><b>Follow.</b> A wallet you follow opens new positions and fully exits another.</sub></td>
-</tr>
-</table>
-
-## On your phone
-
-<p align="center"><img src="assets/screens/mobile.png" alt="QuantumOrb on a phone" width="70%"></p>
-
-## What is in this repository
-
-| Folder | |
+| Klasör | |
 |---|---|
-| [`rules/`](rules) | The open rules: score, operators, Guard's and Shield's checks, and a command that prints a verdict |
-| [`examples/`](examples) | Scan inputs with the verdict each must get: the site's example token, scans the server made, one file per rule |
-| [`test/`](test) | `npm test`: every rule at its edges, and the examples against the server's results |
-| [`docs/`](docs) | How QuantumOrb fits together, the score rule by rule, Guard and Shield |
-| [`assets/`](assets) | The banner and the screens above |
-| [`.github/`](.github) | Issue templates |
+| [`src/rules/`](src/rules) | Saf kural motoru: skor, operatörler, Guard, Shield, kontrat kapıları |
+| [`src/config/rules.js`](src/config/rules.js) | Her eşik, tek yerde |
+| [`src/sources/`](src/sources) | Bubblemaps, GoPlus, DexScreener istemcileri |
+| [`src/adapter.js`](src/adapter.js) | Kaynak cevapları → kural motorunun girdisi |
+| [`src/scan.js`](src/scan.js) · [`src/cli.js`](src/cli.js) | Uçtan uca tarama ve komut satırı |
+| [`examples/`](examples) | Beklenen verdict'iyle tarama girdileri |
+| [`test/`](test) | `npm test`: kurallar sınırlarında, eşleme fixture'larla, örnekler sonuçlarıyla |
+| [`docs/`](docs) | [Mimari](docs/mimari.md) · [Skor kuralları](docs/skor.md) · [Kaynak eşlemesi](docs/kaynaklar.md) · [Kararlar](docs/kararlar.md) |
 
-What stays closed: reading the chain (holders, entries, links between wallets), the launch stream, the
-site, the API and the bot. [`docs/architecture.md`](docs/architecture.md) shows where the line is.
-What changed and when: [`CHANGELOG.md`](CHANGELOG.md).
+## Sınırlar
 
-## Limits
+- Sadece herkese açık zincir verisi okunur. Private key istenmez, işlem imzalanmaz, alım/satım yoktur.
+- Cüzdan görür, insan görmez. Zincirde bağı olmayan iki cüzdan bağımsız görünür.
+- Creator geçmişi ve sniper zamanlaması bu üç kaynakta yoktur; Guard'ın ilk kontrolü "okunmadı" kalır.
+  four.meme olaylarının okunması [`docs/kararlar.md`](docs/kararlar.md) içinde sıradaki iş olarak duruyor.
+- Bonding curve aşamasındaki token'larda fiyat etkisi sabit çarpım formülüyle yaklaşıktır.
+- CLEAN bir söz değildir. Hiçbir şey yatırım tavsiyesi değildir.
 
-- QuantumOrb only reads public on-chain data. It never asks for keys or seed phrases and never touches funds.
-- It sees wallets, not people. Two wallets of one person with no on-chain connection look independent.
-- A CLEAN score is not a promise. Liquidity, sentiment and the dev's off-chain plans are outside what it can read.
-- Five new scans a day per person, on the site and in the bot. Opening a report again, or reloading the page
-  during a scan, never counts.
-- Nothing here is financial advice or a call to buy, sell or hold. The score is an automated, subjective
-  assessment by a fixed set of criteria, on public data that can be incomplete.
-
----
-
-<sub>Screens are from a development build running on simulated data, so every token, wallet and figure
-on them is made up. Most of QuantumOrb's source is closed; this repository is its public page, and the
-rules that decide a verdict are open in it.
-Found a bug or have an idea? <a href="https://github.com/QuantumOrb/QuantOrb/issues">Open an issue</a>. © 2026 QuantumOrb. All rights reserved.</sub>
+<sub>`assets/` klasöründeki görseller Solana sürümüne aittir ve henüz yenilenmedi. © 2026 QuantumOrb.</sub>
